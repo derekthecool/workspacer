@@ -171,9 +171,16 @@ You can either change your custom hotkey or reassign the default hotkey";
                         modifiersPressed |= KeyModifiers.RWin;
                     }
 
-                    if (DoKeyboardEvent(key, modifiersPressed))
+                    if (key != Keys.None && modifiersPressed != KeyModifiers.None)
                     {
-                        return new IntPtr(1);
+                        if (DoKeyboardEvent(key, modifiersPressed))
+                        {
+                            return new IntPtr(1);
+                        }
+                    }
+                    else
+                    {
+                        Logger.Debug($"LAlt: {Win32.GetKeyState(KeysToKeys(Keys.LMenu))}, RAlt: {Win32.GetKeyState(KeysToKeys(Keys.LMenu))}");
                     }
                 }
             }
@@ -194,11 +201,15 @@ You can either change your custom hotkey or reassign the default hotkey";
 
         private bool DoKeyboardEvent(Keys key, KeyModifiers modifiersPressed)
         {
-            if (modifiersPressed != KeyModifiers.None)
+            Logger.Debug($"Key pressed: {key}, Modifiers:{modifiersPressed}");
+            if (modifiersPressed != KeyModifiers.None && key != Keys.None)
             {
+                Logger.Debug($"In first if ...Key pressed: {key}, Modifiers:{modifiersPressed}");
                 var sub = new Sub(modifiersPressed, key);
                 if (_kbdSubs.ContainsKey(sub))
                 {
+                    Logger.Debug($"Sub: {sub}, key: {key}");
+                    DoKeyboardEvent(Keys.None, KeyModifiers.None);
                     _kbdSubs[sub]?.Binding.Invoke();
                     return true;
                 }

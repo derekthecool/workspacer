@@ -9,6 +9,7 @@ using System.Threading.Tasks;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Scripting;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Emit;
 using Microsoft.CodeAnalysis.Scripting;
 
@@ -32,7 +33,6 @@ namespace workspacer
         {
             if (File.Exists(GetPathInUserFolder(ConfigFileName)))
                 return false;
-
 
             var projectJson = GetPathInUserFolder("project.json");
             if (!File.Exists(projectJson))

@@ -57,6 +57,9 @@ namespace workspacer
         [DllImport("user32.dll")]
 		public static extern short GetKeyState(System.Windows.Forms.Keys nVirtKey);
 
+        // TODO: use the set key state to revert modifier keys getting stuck
+        // this link can help https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-setkeyboardstate
+
         [DllImport("user32.dll", SetLastError=true)]
         public static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint lpdwProcessId);
 

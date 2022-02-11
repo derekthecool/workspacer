@@ -63,9 +63,8 @@ namespace workspacer
             {
                 new Tuple<string, Action>("ok", () => { }),
             });
-          
+
             _keybindWarning.Show();
-            
         }
 
         public void Subscribe(KeyModifiers mod, Keys key, KeybindHandler handler, string name)
@@ -73,8 +72,8 @@ namespace workspacer
             var sub = new Sub(mod, key);
             if (_kbdSubs.ContainsKey(sub))
             {
-               Logger.Error($" The Key Combination `{mod}-{key}` is already bound to action: `{name}`");
-               string warning = @$" The Key Combination `{mod}-{key}` is already bound to action: `{name}`. To fix this go into your config file and compare assignments of hotkeys
+                Logger.Error($" The Key Combination `{mod}-{key}` is already bound to action: `{name}`");
+                string warning = @$" The Key Combination `{mod}-{key}` is already bound to action: `{name}`. To fix this go into your config file and compare assignments of hotkeys
 You can either change your custom hotkey or reassign the default hotkey";
 
                 ShowKeybindWarning(warning);
@@ -123,20 +122,35 @@ You can either change your custom hotkey or reassign the default hotkey";
 
         public bool KeyIsPressed(Keys key)
         {
-             return (Win32.GetKeyState(KeysToKeys(key)) & 0x8000) == 0x8000;
+            return (Win32.GetKeyState(KeysToKeys(key)) & 0x8000) == 0x8000;
         }
 
         private IntPtr KbdHook(int nCode, UIntPtr wParam, IntPtr lParam)
         {
             if (nCode == 0 && ((uint)wParam == Win32.WM_KEYDOWN || (uint)wParam == Win32.WM_SYSKEYDOWN))
             {
-                var key = (Keys) Marshal.ReadInt32(lParam);
+                var key = (Keys)Marshal.ReadInt32(lParam);
                 if (key != Keys.LShiftKey && key != Keys.RShiftKey &&
                     key != Keys.LMenu && key != Keys.RMenu &&
                     key != Keys.LControlKey && key != Keys.RControlKey &&
                     key != Keys.LWin && key != Keys.RWin)
                 {
+                    short LAltState = Win32.GetKeyState(KeysToKeys(Keys.LMenu));
+                    short RAltState = Win32.GetKeyState(KeysToKeys(Keys.RMenu));
+
+                    byte[] FullKeyboardState = new byte[256];
+                    bool GetKeyboardStateStatus = Win32.GetKeyboardState(FullKeyboardState);
+                    if (GetKeyboardStateStatus)
+                    {
+                        Logger.Debug(BitConverter.ToString(FullKeyboardState));
+                    }
+                    else
+                    {
+                        Logger.Debug("GetKeyboardState failed!");
+                    }
+
                     KeyModifiers modifiersPressed = 0;
+
                     // there is no other way to distinguish between left and right modifier keys
                     if ((Win32.GetKeyState(KeysToKeys(Keys.LShiftKey)) & 0x8000) == 0x8000)
                     {
@@ -146,11 +160,11 @@ You can either change your custom hotkey or reassign the default hotkey";
                     {
                         modifiersPressed |= KeyModifiers.RShift;
                     }
-                    if ((Win32.GetKeyState(KeysToKeys(Keys.LMenu)) & 0x8000) == 0x8000)
+                    if ((LAltState & 0x8000) == 0x8000)
                     {
                         modifiersPressed |= KeyModifiers.LAlt;
                     }
-                    if ((Win32.GetKeyState(KeysToKeys(Keys.RMenu)) & 0x8000) == 0x8000)
+                    if ((RAltState & 0x8000) == 0x8000)
                     {
                         modifiersPressed |= KeyModifiers.RAlt;
                     }
@@ -178,9 +192,36 @@ You can either change your custom hotkey or reassign the default hotkey";
                             return new IntPtr(1);
                         }
                     }
-                    else
+                    else if ((LAltState & 1) == 1 || (RAltState & 1) == 1)
                     {
-                        Logger.Debug($"LAlt: {Win32.GetKeyState(KeysToKeys(Keys.LMenu))}, RAlt: {Win32.GetKeyState(KeysToKeys(Keys.LMenu))}");
+                        Logger.Debug($"Key: {key}, LAlt: {LAltState:X4}, RAlt: {RAltState:X4}");
+
+                        /*
+                        byte[] SetKeyStateArray = new byte[256];
+                        byte[] ResetKeyStateArray = new byte[256];
+
+                        for (int i = 0; i < ResetKeyStateArray.Length; i++)
+                        {
+                            SetKeyStateArray[i] = 1;
+                            ResetKeyStateArray[i] = 0;
+                        }
+                        */
+                        try
+                        {
+                            // bool result1 = Win32.SetKeyboardState(SetKeyStateArray);
+                            // bool result2 = Win32.SetKeyboardState(ResetKeyStateArray);
+
+                            // Logger.Debug($"Result 1:{result1}, Result 2: {result2}");
+
+                            if (DoKeyboardEvent(key, modifiersPressed))
+                            {
+                                return new IntPtr(1);
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            Logger.Error(ex, "Error using SetKeyState DLLimport function");
+                        }
                     }
                 }
             }
@@ -201,14 +242,11 @@ You can either change your custom hotkey or reassign the default hotkey";
 
         private bool DoKeyboardEvent(Keys key, KeyModifiers modifiersPressed)
         {
-            Logger.Debug($"Key pressed: {key}, Modifiers:{modifiersPressed}");
             if (modifiersPressed != KeyModifiers.None && key != Keys.None)
             {
-                Logger.Debug($"In first if ...Key pressed: {key}, Modifiers:{modifiersPressed}");
                 var sub = new Sub(modifiersPressed, key);
                 if (_kbdSubs.ContainsKey(sub))
                 {
-                    Logger.Debug($"Sub: {sub}, key: {key}");
                     DoKeyboardEvent(Keys.None, KeyModifiers.None);
                     _kbdSubs[sub]?.Binding.Invoke();
                     return true;
@@ -429,7 +467,6 @@ You can either change your custom hotkey or reassign the default hotkey";
                         )
                     ).ToList()
                 );
-
             }
 
             if (_keybindTable.Visible)
